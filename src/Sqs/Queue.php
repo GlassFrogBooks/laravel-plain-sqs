@@ -39,8 +39,8 @@ class Queue extends SqsQueue
     private function getClass($queue = null)
     {
         if (!$queue) return Config::get('sqs-plain.default-handler');
-
-        $queue = end(explode('/', $queue));
+        $queueExploded = explode('/', $queue);
+        $queue = end($queueExploded);
 
         return (array_key_exists($queue, Config::get('sqs-plain.handlers')))
             ? Config::get('sqs-plain.handlers')[$queue]
@@ -69,16 +69,15 @@ class Queue extends SqsQueue
             $class = (array_key_exists($queueId, $this->container['config']->get('sqs-plain.handlers')))
                 ? $this->container['config']->get('sqs-plain.handlers')[$queueId]
                 : $this->container['config']->get('sqs-plain.default-handler');
-
             $response = $this->modifyPayload($response['Messages'][0], $class);
-
+            
             if (preg_match(
-                '/(5\.[4-8]\..*)|(6\.[0-9]*\..*)|(7\.[0-9]*\..*)|(8\.[0-9]*\..*)|(9\.[0-9]*\..*)|(10\.[0-9]*\..*)/',
+                '/(5\.[4-8]\..*)|(6\.[0-9]*\..*)|(7\.[0-9]*\..*)|(8\.[0-9]*\..*)|(9\.[0-9]*\..*)|(10\.[0-9]*\..*)|(11\.[0-9]*\..*)/',
                 $this->container->version())
             ) {
                 return new SqsJob($this->container, $this->sqs, $response, $this->connectionName, $queue);
             }
-
+            
             return new SqsJob($this->container, $this->sqs, $queue, $response);
         }
     }
@@ -99,6 +98,9 @@ class Queue extends SqsQueue
             'data' => isset($body['data']) ? $body['data'] : $body,
             'uuid' => $payload['MessageId']
         ];
+        if (is_array($body['data']) && !array_key_exists('command', $body['data'])) {
+            $body['data']['command'] = '';
+        }
 
         $payload['Body'] = json_encode($body);
 
